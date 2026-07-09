@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renlink - 通话中</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../network-config.js?v=20260401-fix-agora"></script>
+    <script src="config.js?v=20260401-fix-agora"></script>
+    <script src="js/renlink-core.js"></script>
+    <script src="js/auth-store.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="js/audio-manager.js"></script>
+    <link rel="stylesheet" href="brand.css?v=20260422-typing-status">
+    <link rel="stylesheet" href="css/call.css?v=20260510-media-fallback">
+</head>
+<body class="call-page">
+    <div class="ambient-orb cyan call-orb orb-left"></div>
+    <div class="ambient-orb sunset call-orb orb-right"></div>
+
+    <header class="call-header glass-panel">
+        <div class="call-header-side">
+            <button onclick="goBack()" class="back-btn">返回</button>
+            <a href="#" class="brand-lockup call-brand">
+                <span class="brand-mark-shell call-brand-mark-shell">
+                    <img src="assets/renlink-mark.svg" alt="Renlink logo" class="brand-mark">
+                </span>
+                <span class="brand-copy">
+                    <span class="brand-title">Renlink</span>
+                    <span class="brand-subtitle">实时沟通中</span>
+                </span>
+            </a>
+        </div>
+        <div class="call-info">
+            <span class="call-status" id="callStatus">连接中...</span>
+            <span class="call-user" id="callUser"></span>
+        </div>
+        <div class="call-header-side header-meta">
+            <span class="network-pill"><span class="connection-dot"></span>Live</span>
+            <div class="call-timer soft-mono" id="callTimer">00:00</div>
+        </div>
+    </header>
+
+    <div class="video-stage">
+        <!-- Main video area (left) -->
+        <div class="video-main-area">
+            <div id="remote-video-container" class="remote-video glass-panel">
+                <div class="stage-overlay"></div>
+                <div class="video-placeholder">
+                    <div class="avatar-large">◎</div>
+                    <p class="placeholder-title">等待对方加入</p>
+                    <p class="placeholder-subtitle">连接已建立，正在等待音视频接入</p>
+                </div>
+            </div>
+
+            <div id="local-video-container" class="local-video glass-panel">
+                <div class="video-label">我的画面</div>
+            </div>
+        </div>
+
+        <!-- Right panel: subtitle (top) + sign language (bottom) -->
+        <div class="video-right-panel">
+            <div id="subtitle-container" class="subtitle-container hidden">
+                <div class="subtitle-content glass-panel" id="subtitleContent">
+                    <div class="subtitle-stack">
+                        <section class="subtitle-lane remote" id="remoteSubtitlePanel">
+                            <div class="subtitle-lane-header">
+                                <span class="subtitle-speaker" id="remoteSubtitleSpeaker">对方</span>
+                                <span class="subtitle-status" id="remoteSubtitleStatus">等待对方语音流接入</span>
+                            </div>
+                            <div class="subtitle-lines" id="remoteSubtitleLines">
+                                <p class="subtitle-placeholder">对方发言后会显示在这里</p>
+                            </div>
+                        </section>
+                        <section class="subtitle-lane local" id="localSubtitlePanel">
+                            <div class="subtitle-lane-header">
+                                <span class="subtitle-speaker" id="localSubtitleSpeaker">我方</span>
+                                <span class="subtitle-status" id="localSubtitleStatus">等待我的麦克风就绪</span>
+                            </div>
+                            <div class="subtitle-lines" id="localSubtitleLines">
+                                <p class="subtitle-placeholder">我方发言后会显示在这里</p>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tts-container" class="tts-container hidden">
+                <div class="tts-panel glass-panel">
+                    <div class="tts-header">
+                        <div class="tts-header-copy">
+                            <span class="tts-kicker">文字转语音</span>
+                            <span class="tts-title">代发声面板</span>
+                        </div>
+                        <div class="tts-header-actions">
+                            <button
+                                id="ttsSettingsBtn"
+                                type="button"
+                                class="tts-settings-toggle"
+                                onclick="toggleTtsSettings()"
+                                aria-expanded="false"
+                            >
+                                <span class="tts-settings-icon">调</span>
+                                <span class="tts-settings-text">声音设置</span>
+                            </button>
+                            <span id="ttsStatus" class="tts-status">等待对方加入通话</span>
+                        </div>
+                    </div>
+
+                    <div id="tts-settings-panel" class="tts-settings-panel hidden">
+                        <div class="tts-settings-grid">
+                            <label class="tts-field" for="ttsVoicePresetSelect">
+                                <span>声音风格</span>
+                                <select id="ttsVoicePresetSelect" class="tts-select"></select>
+                            </label>
+
+                            <label id="ttsCustomVoiceField" class="tts-field hidden" for="ttsVoiceInput">
+                                <span>自定义音色代码</span>
+                                <input
+                                    id="ttsVoiceInput"
+                                    class="tts-input"
+                                    type="text"
+                                    value="x4_xiaoyan"
+                                    placeholder="例如：x4_xiaoyan"
+                                >
+                            </label>
+
+                            <label class="tts-field tts-range-field" for="ttsSpeedInput">
+                                <span>语速 <strong id="ttsSpeedValue">50</strong></span>
+                                <input id="ttsSpeedInput" class="tts-range" type="range" min="0" max="100" value="50">
+                            </label>
+
+                            <label class="tts-field tts-range-field" for="ttsVolumeInput">
+                                <span>音量 <strong id="ttsVolumeValue">50</strong></span>
+                                <input id="ttsVolumeInput" class="tts-range" type="range" min="0" max="100" value="50">
+                            </label>
+
+                            <label class="tts-field tts-range-field" for="ttsPitchInput">
+                                <span>语调 <strong id="ttsPitchValue">50</strong></span>
+                                <input id="ttsPitchInput" class="tts-range" type="range" min="0" max="100" value="50">
+                            </label>
+                        </div>
+
+                        <p class="tts-settings-tip">这里配置播报声音的风格，保存后后续播报都会使用当前设置。</p>
+
+                        <div class="tts-settings-actions">
+                            <button type="button" class="tts-btn secondary" onclick="cancelTtsSettings()">取消</button>
+                            <button id="ttsSettingsSaveBtn" type="button" class="tts-btn primary" onclick="saveTtsSettings()">保存设置</button>
+                        </div>
+                    </div>
+
+                    <p id="ttsVoiceSummary" class="tts-summary">当前声音：x4_xiaoyan · 语速 50 · 音量 50 · 语调 50</p>
+
+                    <label class="tts-label" for="ttsTextInput">输入想让系统替你说出的话</label>
+                    <textarea
+                        id="ttsTextInput"
+                        class="tts-textarea"
+                        maxlength="300"
+                        placeholder="例如：你好，我现在更适合用文字表达，请稍等我输入。"
+                    ></textarea>
+
+                    <p class="tts-tip">播报时会把合成语音注入当前通话音频；若字幕已开启，也会同步这段文本。</p>
+
+                    <div class="tts-actions">
+                        <span id="ttsCharCount" class="tts-char-count">0/300</span>
+                        <div class="tts-action-buttons">
+                            <button id="ttsStopBtn" type="button" class="tts-btn secondary" onclick="stopTextToSpeechPlayback()">停止</button>
+                            <button id="ttsSubmitBtn" type="button" class="tts-btn primary" onclick="submitTextToSpeech()">播报给对方</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sign-language-container" class="sign-language-container hidden">
+                <div class="sign-language-header">
+                    <span>手语辅助视图</span>
+                    <button onclick="toggleSignLanguage()" class="close-btn">×</button>
+                </div>
+                <div id="sign-language-avatar" class="sign-language-avatar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="call-controls glass-panel">
+        <button id="muteBtn" class="control-btn" onclick="toggleMute()" title="静音">
+            <span class="icon">🎙</span>
+            <span class="label">静音</span>
+        </button>
+
+        <button id="videoBtn" class="control-btn" onclick="toggleVideo()" title="摄像头">
+            <span class="icon">📹</span>
+            <span class="label">摄像头</span>
+        </button>
+
+        <button id="subtitleBtn" class="control-btn" onclick="toggleSubtitle()" title="字幕">
+            <span class="icon">字</span>
+            <span class="label">字幕</span>
+        </button>
+
+        <button id="ttsBtn" class="control-btn" onclick="toggleTextToSpeech()" title="代发声">
+            <span class="icon">声</span>
+            <span class="label">代发声</span>
+        </button>
+
+        <button id="signLanguageBtn" class="control-btn" onclick="toggleSignLanguage()" title="手语">
+            <span class="icon">手</span>
+            <span class="label">手语</span>
+        </button>
+
+        <button id="hangupBtn" class="control-btn hangup" onclick="hangup()" title="挂断">
+            <span class="icon">✕</span>
+            <span class="label">挂断</span>
+        </button>
+    </div>
+
+    <div id="loading" class="loading-overlay">
+        <div class="loading-card glass-panel">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">正在连接通话...</p>
+        </div>
+    </div>
+
+    <script>
+        if (typeof CONFIG === 'undefined') {
+            alert('配置文件加载失败');
+        }
+    </script>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
+    <script>
+        // 等待 Agora SDK 完全加载
+        (function checkAgoraSDK() {
+            console.log('=== Agora SDK Check ===');
+            if (typeof AgoraRTC === 'undefined') {
+                console.error('AgoraRTC 未定义，等待加载...');
+                setTimeout(checkAgoraSDK, 100);
+            } else {
+                window.agoraSDKReady = true;
+            }
+        })();
+    </script>
+    <script src="js/agora-client.js?v=20260510-media-fallback"></script>
+    <script src="js/websocket-client.js?v=20260422-typing-status"></script>
+    <script src="js/xfyun-rtasr-client.js?v=20260422-typing-status"></script>
+    <script src="js/xfyun-tts-client.js?v=20260422-typing-status"></script>
+    <script src="js/sign-language-avatar.js?v=20260422-typing-status"></script>
+    <script src="js/call-manager.js?v=20260510-media-fallback"></script>
+    <script src="js/interactive-bg.js?v=20260422-typing-status"></script>
+</body>
+</html>

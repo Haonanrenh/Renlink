@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renlink - 主控制台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../network-config.js"></script>
+    <script src="config.js"></script>
+    <script src="js/renlink-core.js"></script>
+    <script src="js/auth-store.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="js/svg-icons.js"></script>
+    <script src="js/audio-manager.js"></script>
+    <link rel="stylesheet" href="brand.css?v=9">
+    <link rel="stylesheet" href="css/dashboard.css?v=9">
+</head>
+<body class="dashboard-page">
+    <header class="top-navbar glass-panel">
+        <div class="page-wrap top-navbar-inner">
+            <div class="top-branding">
+                <a href="#" class="brand-lockup">
+                    <span class="brand-mark-shell">
+                        <img src="assets/renlink-mark.svg" alt="Renlink logo" class="brand-mark">
+                    </span>
+                    <span class="brand-copy">
+                        <span class="brand-title">Renlink</span>
+                        <span class="brand-subtitle">实时无障碍沟通工作台</span>
+                    </span>
+                </a>
+                <span class="connection-pill"><span class="connection-dot"></span>实时连接中</span>
+            </div>
+            <div class="top-actions">
+                <div class="user-badge glass-panel">
+                    <span class="user-badge-label">当前用户</span>
+                    <span class="user-badge-name" id="sidebarUsername">欢迎回来</span>
+                </div>
+                <button onclick="dashboardManager.logout()" class="logout-btn-top">退出登录</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="mainContent" class="main-content-new page-wrap">
+        <div id="onlineCallModule" class="module active">
+            <section class="module-hero glass-panel">
+                <div class="module-hero-copy">
+                    <span class="kicker">在线通话</span>
+                    <h2>搜索联系人，立即发起视频或语音沟通。</h2>
+                    <p>在同一个工作台里完成搜索、呼叫、接听与状态同步，让听障、言语障碍与普通用户都能更顺畅地进入沟通。</p>
+                </div>
+            </section>
+
+            <section class="search-section-new glass-panel">
+                <div class="search-headline">
+                    <h3>搜索用户，发起连接</h3>
+                    <p>输入用户名后，即可选择视频或语音方式开始沟通，也可以把对方加入好友列表。</p>
+                </div>
+                <div class="search-box-new">
+                    <span class="search-icon-new">⌕</span>
+                    <input type="text" id="userSearchInput" placeholder="输入用户名搜索并发起通话..." class="search-input-new">
+                </div>
+                <div id="searchResults" class="search-results-new"></div>
+                <div id="searchHint" class="search-hint">
+                    <p>搜索结果会显示可直接发起视频或语音通话的用户，也会标识是否已经是好友。</p>
+                </div>
+            </section>
+
+            <div id="callArea" class="call-area hidden">
+                <div class="video-container">
+                    <video id="localVideo" class="video-local" autoplay muted></video>
+                    <video id="remoteVideo" class="video-remote" autoplay></video>
+                </div>
+                <div class="call-controls">
+                    <button class="control-btn" id="muteBtn"><span>🎙</span></button>
+                    <button class="control-btn" id="videoBtn"><span>📷</span></button>
+                    <button class="control-btn end-call" id="endCallBtn"><span>✕</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="friendsModule" class="module">
+            <section class="module-hero glass-panel">
+                <div class="module-hero-copy">
+                    <span class="kicker">好友列表</span>
+                    <h2>把常联系的人固定下来，可以一键发起呼叫。</h2>
+                    <p>这里可以像好友进行信息与视频及语音互动。</p>
+                </div>
+                <div class="module-hero-aside glass-panel">
+                    <div class="hero-stat-card">
+                        <span class="hero-stat-value soft-mono" id="friendsTotalCount">0</span>
+                        <span class="hero-stat-label">当前好友总数</span>
+                    </div>
+                    <div class="hero-stat-card">
+                        <span class="hero-stat-value soft-mono" id="friendsOnlineCount">0</span>
+                        <span class="hero-stat-label">当前在线好友</span>
+                    </div>
+                </div>
+            </section>
+
+            <div class="friends-container glass-panel">
+                <div class="friends-header">
+                    <div class="friends-title">
+                        <span>好友列表与快捷呼叫</span>
+                    </div>
+                    <button onclick="friendsModule.loadFriends()" class="mark-all-read-btn">刷新好友</button>
+                </div>
+                <div class="friends-note">
+                    `test1`、`test2` 以及几位演示账号会自动出现在这里，适合直接切换账号做好友呼叫演示。
+                </div>
+                <div id="friendsList" class="friends-list"></div>
+            </div>
+        </div>
+
+        <div id="missedCallsModule" class="module">
+            <section class="module-hero glass-panel missed-hero">
+                <div class="module-hero-copy">
+                    <span class="kicker">未接来电</span>
+                    <h2>把错过的来电，留成可追踪、可回拨的记录。</h2>
+                    <p>系统会自动记录超时或发起方取消的来电，并突出未读状态，方便你尽快跟进和回拨。</p>
+                </div>
+                <div class="module-hero-aside glass-panel unread-panel">
+                    <span class="hero-stat-value soft-mono" id="missedCallBadge">0</span>
+                    <span class="hero-stat-label">当前未读数量</span>
+                </div>
+            </section>
+
+            <div class="missed-calls-container glass-panel">
+                <div class="missed-calls-header">
+                    <div class="missed-calls-title">
+                        <span>最近 10 条来电记录</span>
+                    </div>
+                    <button onclick="missedCallModule.markAllAsRead()" class="mark-all-read-btn">全部标记已读</button>
+                </div>
+                <div id="missedCallsList" class="missed-calls-list"></div>
+            </div>
+        </div>
+
+        <div id="learningModule" class="module">
+            <section class="module-hero glass-panel learning-hero">
+                <div class="module-hero-copy">
+                    <span class="kicker">手语学习</span>
+                    <h2>中文手语词句练习库</h2>
+                    <p>按常用场景浏览、搜索词语，选择卡片即可观看对应手语视频。</p>
+                </div>
+                <div class="module-hero-aside glass-panel learning-hero-aside">
+                    <div class="hero-stat-card">
+                        <span class="hero-stat-value soft-mono" id="signLearningTotal">6707</span>
+                        <span class="hero-stat-label">手语学习内容</span>
+                    </div>
+                    <div class="hero-stat-card">
+                        <span class="hero-stat-value soft-mono">CN</span>
+                        <span class="hero-stat-label">中文手语练习</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sign-learning-workspace">
+                <div class="sign-learning-library glass-panel">
+                    <div class="sign-learning-toolbar">
+                        <div>
+                            <h3>练习词句</h3>
+                            <p id="signLearningCount">当前显示 0 / 0 个词句</p>
+                        </div>
+                        <label class="sign-learning-search" for="signLearningSearch">
+                            <span>⌕</span>
+                            <input
+                                id="signLearningSearch"
+                                data-testid="sign-learning-search"
+                                type="search"
+                                placeholder="搜索：医院、请、公交车..."
+                                autocomplete="off"
+                            >
+                        </label>
+                    </div>
+
+                    <div
+                        id="signLearningCategories"
+                        class="sign-learning-categories"
+                        data-testid="sign-learning-categories"
+                        aria-label="手语学习分类"
+                    ></div>
+
+                    <div class="sign-progress-panel" data-testid="sign-learning-progress">
+                        <div class="sign-progress-head">
+                            <div>
+                                <h3>我的学习</h3>
+                                <p id="signLearningProgressSummary">收藏 0 个 · 已学 0 个</p>
+                            </div>
+                        </div>
+                        <div class="sign-progress-columns">
+                            <button
+                                id="signLearningFavorites"
+                                type="button"
+                                class="sign-progress-section"
+                                data-sign-progress-open="favorite"
+                                data-testid="sign-learning-favorites"
+                                aria-expanded="false"
+                                aria-controls="signLearningProgressDetail"
+                            >
+                                <div class="sign-progress-section-head">
+                                    <span>已收藏</span>
+                                    <strong id="signLearningFavoriteCount">0</strong>
+                                </div>
+                                <p id="signLearningFavoriteHint">点击查看收藏内容</p>
+                            </button>
+                            <button
+                                id="signLearningLearned"
+                                type="button"
+                                class="sign-progress-section"
+                                data-sign-progress-open="learned"
+                                data-testid="sign-learning-learned"
+                                aria-expanded="false"
+                                aria-controls="signLearningProgressDetail"
+                            >
+                                <div class="sign-progress-section-head">
+                                    <span>已学习</span>
+                                    <strong id="signLearningLearnedCount">0</strong>
+                                </div>
+                                <p id="signLearningLearnedHint">点击查看已学习内容</p>
+                            </button>
+                        </div>
+                        <div
+                            id="signLearningProgressDetail"
+                            class="sign-progress-detail hidden"
+                            data-testid="sign-learning-progress-detail"
+                        >
+                            <div class="sign-progress-detail-head">
+                                <div>
+                                    <span>学习记录</span>
+                                    <h4 id="signLearningProgressDetailTitle">请选择记录类型</h4>
+                                </div>
+                                <button
+                                    id="signLearningProgressClose"
+                                    type="button"
+                                    class="sign-progress-close"
+                                    data-sign-progress-close
+                                    aria-label="收起学习记录"
+                                >
+                                    收起
+                                </button>
+                            </div>
+                            <div
+                                id="signLearningProgressDetailList"
+                                class="sign-progress-list"
+                                data-testid="sign-learning-progress-list"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div
+                        id="signLearningGrid"
+                        class="sign-learning-grid"
+                        data-testid="sign-learning-grid"
+                        aria-live="polite"
+                    ></div>
+
+                    <div id="signLearningEmpty" class="mini-empty-state hidden">
+                        没有匹配的词句。
+                    </div>
+                    <div
+                        id="signLearningPagination"
+                        class="sign-pagination hidden"
+                        data-testid="sign-learning-pagination"
+                        aria-label="手语学习翻页"
+                    >
+                        <button id="signLearningPrevPage" type="button" class="sign-page-btn" data-testid="sign-learning-prev-page">
+                            上一页
+                        </button>
+                        <div class="sign-page-status">
+                            <span id="signLearningPageSummary">第 1 / 1 页</span>
+                            <label for="signLearningPageInput">
+                                跳至
+                                <input id="signLearningPageInput" type="number" min="1" value="1" inputmode="numeric">
+                                页
+                            </label>
+                        </div>
+                        <button id="signLearningNextPage" type="button" class="sign-page-btn" data-testid="sign-learning-next-page">
+                            下一页
+                        </button>
+                    </div>
+                </div>
+
+                <aside class="sign-learning-player glass-panel" data-testid="sign-learning-player">
+                    <div class="sign-player-head">
+                        <div>
+                            <span class="sign-player-kicker">当前练习</span>
+                            <h3 id="signLearningPlayerTitle">请选择词句</h3>
+                            <p id="signLearningPlayerMeta">等待载入学习清单</p>
+                        </div>
+                        <span id="signLearningDatasetId" class="sign-dataset-pill">等待选择</span>
+                    </div>
+
+                    <div class="sign-player-screen">
+                        <video
+                            id="signLearningVideo"
+                            class="sign-learning-video hidden"
+                            controls
+                            playsinline
+                            preload="metadata"
+                        ></video>
+                        <div id="signLearningAvatarPanel" class="sign-avatar-panel">
+                            <span class="sign-avatar-mark">手</span>
+                            <strong id="signLearningAvatarText">请选择词句</strong>
+                            <p>中文手语数字人演示</p>
+                        </div>
+                    </div>
+
+                    <p id="signLearningPlayerStatus" class="sign-player-status">
+                        选择一个词句开始学习。
+                    </p>
+
+                    <div class="sign-player-actions">
+                        <button id="signLearningPlayBtn" type="button" class="call-btn video-call-btn" data-testid="sign-learning-play">
+                            播放视频
+                        </button>
+                        <button id="signLearningFavoriteBtn" type="button" class="mark-all-read-btn">
+                            收藏
+                        </button>
+                        <button id="signLearningLearnedBtn" type="button" class="mark-all-read-btn">
+                            标记已学
+                        </button>
+                    </div>
+
+                    <p id="signLearningNotes" class="sign-learning-notes">
+                        选择词语后可观看对应手语视频，也可以收藏或标记已学。
+                    </p>
+                </aside>
+            </section>
+            <button id="signLearningBackTopBtn" type="button" class="sign-back-top-btn hidden" aria-label="返回顶部" title="返回顶部">
+                ↑
+            </button>
+        </div>
+    </main>
+
+    <nav class="floating-navbar glass-panel">
+        <div class="nav-items-container">
+            <button class="floating-nav-item active" data-module="onlineCall">
+                <div class="nav-item-content">
+                    <span class="nav-icon-floating">●</span>
+                    <span class="nav-text-floating">在线通话</span>
+                </div>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="floating-nav-item" data-module="friends">
+                <div class="nav-item-content">
+                    <span id="navFriendsBadge" class="nav-badge" style="display: none;">0</span>
+                    <span class="nav-icon-floating">●</span>
+                    <span class="nav-text-floating">好友列表</span>
+                </div>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="floating-nav-item" data-module="missedCalls">
+                <div class="nav-item-content">
+                    <span class="nav-icon-floating">●</span>
+                    <span class="nav-text-floating">未接来电</span>
+                    <span id="navMissedCallBadge" class="nav-badge" style="display: none;">0</span>
+                </div>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="floating-nav-item" data-module="learning">
+                <div class="nav-item-content">
+                    <span class="nav-icon-floating">▻</span>
+                    <span class="nav-text-floating">离线学习</span>
+                </div>
+                <div class="nav-indicator"></div>
+            </button>
+        </div>
+    </nav>
+
+    <!-- 删除好友确认对话框 -->
+    <div id="removeFriendConfirmDialog" class="incoming-call-notification hidden" onclick="if(event.target === this) friendsModule.cancelRemoveFriend()">
+        <div class="incoming-call-backdrop"></div>
+        <div class="notification-card glass-panel">
+            <div class="notification-copy">
+                <span class="kicker">删除好友</span>
+                <h3>确认删除好友？</h3>
+                <p id="removeFriendMessage">删除后将不能继续互发消息和通话。</p>
+            </div>
+            <div class="notification-content">
+                <div class="caller-info" style="justify-content: center; padding: 1rem 0;">
+                    <div class="user-avatar" style="font-size: 3rem;">👤</div>
+                    <div style="text-align: center;">
+                        <h3 id="removeFriendUsername" class="text-xl font-bold mb-1"></h3>
+                        <p class="text-slate-400">即将从好友列表中移除</p>
+                    </div>
+                </div>
+                <div class="notification-actions">
+                    <button class="decline-btn" onclick="friendsModule.cancelRemoveFriend()">
+                        <span>取消</span>
+                    </button>
+                    <button class="accept-btn" onclick="friendsModule.confirmRemoveFriend()">
+                        <span>确认删除</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="incomingCallNotification" class="incoming-call-notification hidden">
+        <div class="incoming-call-backdrop"></div>
+        <div class="notification-card glass-panel">
+            <div class="notification-copy">
+                <span class="kicker">来电提醒</span>
+                <h3>新的来电邀请</h3>
+                <p>对方正在呼叫你，准备进入实时沟通。</p>
+            </div>
+            <div class="notification-content">
+                <div class="caller-info">
+                    <div class="caller-avatar" id="callerAvatar"></div>
+                    <div>
+                        <h3 id="callerName" class="text-xl font-bold mb-1"></h3>
+                        <p id="callType" class="text-slate-300"></p>
+                    </div>
+                </div>
+                <div class="notification-actions">
+                    <button class="accept-btn" onclick="onlineCallModule.acceptCall(onlineCallModule.currentInvitation)">
+                        <span id="acceptIcon"></span>
+                        <span>接听</span>
+                    </button>
+                    <button class="decline-btn" onclick="onlineCallModule.declineCall(onlineCallModule.currentInvitation)">
+                        <span id="rejectIcon"></span>
+                        <span>拒绝</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('load', () => {
+            try {
+                const callerAvatar = document.getElementById('callerAvatar');
+                const acceptIcon = document.getElementById('acceptIcon');
+                const rejectIcon = document.getElementById('rejectIcon');
+
+                if (typeof SVGIcons !== 'undefined') {
+                    if (callerAvatar) callerAvatar.innerHTML = SVGIcons.incomingCall;
+                    if (acceptIcon) acceptIcon.innerHTML = SVGIcons.accept;
+                    if (rejectIcon) rejectIcon.innerHTML = SVGIcons.reject;
+                } else {
+                    if (callerAvatar) callerAvatar.textContent = '☎';
+                    if (acceptIcon) acceptIcon.textContent = '✓';
+                    if (rejectIcon) rejectIcon.textContent = '✕';
+                }
+            } catch (error) {
+                console.error('Error initializing SVG icons:', error);
+            }
+        });
+    </script>
+
+    <script src="js/dashboard-manager.js"></script>
+    <script src="js/websocket-client.js"></script>
+    <script src="js/online-call-module.js"></script>
+    <script src="js/friends-module.js"></script>
+    <script src="js/missed-call-module.js"></script>
+    <script src="js/sign-language-avatar.js"></script>
+    <script src="data/sign-learning-catalog.js"></script>
+    <script src="js/sign-learning-module.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            try {
+                if (typeof DashboardManager === 'undefined') {
+                    throw new Error('DashboardManager 未定义');
+                }
+                if (typeof OnlineCallModule === 'undefined') {
+                    throw new Error('OnlineCallModule 未定义');
+                }
+                if (typeof FriendsModule === 'undefined') {
+                    throw new Error('FriendsModule 未定义');
+                }
+                if (typeof MissedCallModule === 'undefined') {
+                    throw new Error('MissedCallModule 未定义');
+                }
+
+                window.dashboardManager = window.Renlink.registerModule('dashboard', new DashboardManager());
+                window.onlineCallModule = window.Renlink.registerModule('onlineCall', new OnlineCallModule());
+                window.friendsModule = window.Renlink.registerModule('friends', new FriendsModule());
+                window.missedCallModule = window.Renlink.registerModule('missedCalls', new MissedCallModule());
+
+                window.dashboardManager.initialize();
+                window.onlineCallModule.initialize();
+                window.friendsModule.initialize();
+                window.missedCallModule.initialize();
+
+                setInterval(() => {
+                    try {
+                        const badge = document.getElementById('missedCallBadge');
+                        const navBadge = document.getElementById('navMissedCallBadge');
+                        if (badge && navBadge) {
+                            navBadge.textContent = badge.textContent;
+                            navBadge.style.display = badge.style.display;
+                        }
+                    } catch (error) {
+                        console.error('[Dashboard] Badge sync error:', error);
+                    }
+                }, 1000);
+            } catch (error) {
+                console.error('[Dashboard] Init failed:', error);
+                alert('页面初始化失败，请刷新重试。错误：' + error.message);
+            }
+        });
+    </script>
+    <script src="js/interactive-bg.js"></script>
+</body>
+</html>

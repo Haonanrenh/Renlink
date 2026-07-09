@@ -1,0 +1,29 @@
+﻿<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="renlink-stroke" x1="24" y1="22" x2="102" y2="102" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#58E7FF"/>
+      <stop offset="0.52" stop-color="#8EA2FF"/>
+      <stop offset="1" stop-color="#FF8CDD"/>
+    </linearGradient>
+    <linearGradient id="renlink-soft" x1="36" y1="40" x2="90" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D6F9FF" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#FFD3F2" stop-opacity="0.92"/>
+    </linearGradient>
+    <filter id="outerGlow" x="0" y="0" width="128" height="128" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.22  0 1 0 0 0.25  0 0 1 0 0.55  0 0 0 1 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#outerGlow)">
+    <path d="M63.8 28.6C69.6 22.9 77.6 20 85.5 20C93.4 20 101.3 22.9 107 28.6C118.4 40 118.4 58.5 107 69.9L67.2 109.7C65.4 111.5 62.6 111.5 60.8 109.7L21 69.9C9.6 58.5 9.6 40 21 28.6C32.5 17.1 51 17.1 62.4 28.6L64 30.2L63.8 28.6Z" stroke="url(#renlink-stroke)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M33.5 50.2C41.4 41.2 49.4 37.8 57.3 39.8C61.2 40.8 62.5 44.3 60.5 48.5L56.3 57.2C54.7 60.5 57.1 64.2 60.8 64.2H66.8C69.4 64.2 71.6 62.2 71.9 59.7L72.8 53.7C73.2 51.2 75.3 49.4 77.8 49.4C80.3 49.4 82.4 51.2 82.7 53.7L83.8 61.3C84.1 63.8 86.2 65.6 88.7 65.6H90.2C92.7 65.6 94.8 67.4 95.1 69.9L95.5 73.1" stroke="url(#renlink-stroke)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M33.5 50.2C41.4 41.2 49.4 37.8 57.3 39.8" stroke="url(#renlink-soft)" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M78.9 49.4L92.2 62.5" stroke="url(#renlink-soft)" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M73.8 57.5L87.1 70.6" stroke="url(#renlink-soft)" stroke-width="2.6" stroke-linecap="round" opacity="0.88"/>
+    <path d="M68.2 64.1L81.4 77.2" stroke="url(#renlink-soft)" stroke-width="2.6" stroke-linecap="round" opacity="0.74"/>
+  </g>
+</svg>

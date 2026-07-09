@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: renlink-backend
+  profiles:
+    default: dev
+
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: ${DB_DRIVER}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:validate}
+    show-sql: ${SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: ${HIBERNATE_DIALECT}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000
+
+agora:
+  app-id: ${AGORA_APP_ID:}
+  app-certificate: ${AGORA_APP_CERTIFICATE:}
+  token-expiration: 3600
+
+cors:
+  allowed-origins: ${RENLINK_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+
+server:
+  port: 8080
+
+xfyun:
+  rtasr-llm:
+    # Values are loaded from the repo-root .env file.
+    enabled: ${XFYUN_RTASR_LLM_ENABLED:false}
+    app-id: ${XFYUN_RTASR_LLM_APP_ID:}
+    access-key-id: ${XFYUN_RTASR_LLM_ACCESS_KEY_ID:}
+    access-key-secret: ${XFYUN_RTASR_LLM_ACCESS_KEY_SECRET:}
+    base-url: ${XFYUN_RTASR_LLM_BASE_URL:wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1}
+    audio-encode: ${XFYUN_RTASR_LLM_AUDIO_ENCODE:pcm_s16le}
+    lang: ${XFYUN_RTASR_LLM_LANG:autodialect}
+    samplerate: ${XFYUN_RTASR_LLM_SAMPLERATE:16000}
+    role-type: ${XFYUN_RTASR_LLM_ROLE_TYPE:0}
+    pd: ${XFYUN_RTASR_LLM_PD:com}
+  tts:
+    enabled: ${XFYUN_TTS_ENABLED:false}
+    app-id: ${XFYUN_TTS_APP_ID:}
+    api-key: ${XFYUN_TTS_API_KEY:}
+    api-secret: ${XFYUN_TTS_API_SECRET:}
+    base-url: ${XFYUN_TTS_BASE_URL:wss://tts-api.xfyun.cn/v2/tts}
+    vcn: ${XFYUN_TTS_VCN:x4_xiaoyan}
+    aue: ${XFYUN_TTS_AUE:lame}
+    auf: "${XFYUN_TTS_AUF:audio/L16;rate=16000}"
+    tte: ${XFYUN_TTS_TTE:UTF8}
+    speed: ${XFYUN_TTS_SPEED:50}
+    volume: ${XFYUN_TTS_VOLUME:50}
+    pitch: ${XFYUN_TTS_PITCH:50}
+    sfl: ${XFYUN_TTS_SFL:1}
+
+sign-language:
+  app-secret: ${SIGN_LANGUAGE_APP_SECRET:}
+  enabled: ${SIGN_LANGUAGE_ENABLED:true} 

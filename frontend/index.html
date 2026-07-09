@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renlink - 无障碍沟通平台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../network-config.js"></script>
+    <script src="config.js"></script>
+    <script src="js/renlink-core.js"></script>
+    <script src="js/auth-store.js"></script>
+    <script src="js/api-client.js"></script>
+    <link rel="stylesheet" href="brand.css?v=8">
+    <link rel="stylesheet" href="styles.css?v=8">
+</head>
+<body class="landing-page intro-complete">
+    <!-- Flashy Ambient Orbs & Watermark -->
+    <div class="bg-watermark">RENLINK</div>
+    <div class="cyber-orb" style="top: -20%; left: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(0, 224, 255, 0.18) 0%, transparent 60%);"></div>
+    <div class="cyber-orb" style="bottom: -20%; right: -10%; width: 70vw; height: 70vw; background: radial-gradient(circle, rgba(255, 77, 180, 0.15) 0%, transparent 60%); animation-delay: -5s;"></div>
+    <nav class="site-nav">
+        <div class="page-wrap nav-inner">
+            <a href="#" class="brand-lockup brand-lockup-home">
+                <span class="nav-brand-art" aria-hidden="true">
+                    <span class="nav-brand-disc"></span>
+                    <span class="nav-brand-mark"></span>
+                </span>
+                <span class="brand-copy brand-copy-home">
+                    <span class="brand-title">RENLINK</span>
+                    <span class="brand-subtitle">让理解先于声音抵达</span>
+                </span>
+            </a>
+            <div id="authButtons" class="nav-actions">
+                <button type="button" onclick="openLoginModal()" class="pill-button secondary nav-btn">登录账号</button>
+                <button type="button" onclick="openRegisterModal()" class="pill-button primary nav-btn">创建账号</button>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero-section">
+            <div class="page-wrap cinematic-center">
+                <span class="cyber-eyebrow">无障碍沟通平台</span>
+                <h1 class="hero-title epic-title">让每次来电，都更容易被看见与回应</h1>
+                <p class="hero-text epic-subtitle">实时音视频、来电提醒与未接回拨，通过科技建立最简单的沟通连接。</p>
+                <div class="epic-actions">
+                    <button type="button" onclick="openLoginModal()" class="cyber-btn cyber-btn-secondary">登录已有账号</button>
+                    <button type="button" onclick="openRegisterModal()" class="cyber-btn cyber-btn-primary">创建账号体验</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content auth-panel">
+            <div class="modal-brand">
+                <span class="brand-emblem auth-emblem">
+                    <span class="brand-emblem-image"></span>
+                </span>
+                <div>
+                    <h2 class="text-2xl font-bold">登录账号</h2>
+                    <p class="auth-subtext">进入你的沟通工作台，继续处理来电与连接</p>
+                </div>
+            </div>
+            <div class="modal-header">
+                <span class="auth-kicker">Sign in</span>
+                <button type="button" onclick="closeLoginModal()" class="modal-close" aria-label="关闭登录弹窗">&times;</button>
+            </div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div id="loginError" class="error-message"></div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="loginUsername" required placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPassword" required placeholder="请输入密码">
+                </div>
+                <button type="submit" class="btn-primary w-full">登录</button>
+                <div class="text-center mt-4 text-sm auth-switch">
+                    还没有账号？
+                    <a href="#" onclick="switchToRegister(event)">创建账号</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="registerModal" class="modal">
+        <div class="modal-content auth-panel">
+            <div class="modal-brand">
+                <span class="brand-emblem auth-emblem">
+                    <span class="brand-emblem-image"></span>
+                </span>
+                <div>
+                    <h2 class="text-2xl font-bold">创建账号</h2>
+                    <p class="auth-subtext">创建你的账号，开始使用实时沟通与来电管理能力</p>
+                </div>
+            </div>
+            <div class="modal-header">
+                <span class="auth-kicker">Register</span>
+                <button type="button" onclick="closeRegisterModal()" class="modal-close" aria-label="关闭注册弹窗">&times;</button>
+            </div>
+            <form id="registerForm" onsubmit="handleRegister(event)">
+                <div id="registerError" class="error-message"></div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="registerUsername" required placeholder="请输入用户名" minlength="3">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="registerPassword" required placeholder="请输入密码" minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>确认密码</label>
+                    <input type="password" id="registerConfirmPassword" required placeholder="请再次输入密码">
+                </div>
+                <button type="submit" class="btn-primary w-full">注册</button>
+                <div class="text-center mt-4 text-sm auth-switch">
+                    已有账号？
+                    <a href="#" onclick="switchToLogin(event)">去登录</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="js/interactive-bg.js?v=9"></script>
+</body>
+</html>

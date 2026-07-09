@@ -1,0 +1,177 @@
+:root {
+    --ink-980: #ffffff;
+    --ink-950: #f8fafc;
+    --ink-930: #f1f5f9;
+    --ink-900: #e2e8f0;
+    --ink-860: #cbd5e1;
+    --surface-strong: rgba(255, 255, 255, 0.95);
+    --surface-medium: rgba(255, 255, 255, 0.8);
+    --surface-soft: rgba(255, 255, 255, 0.6);
+    --line-soft: rgba(0, 0, 0, 0.04);
+    --line-strong: rgba(0, 0, 0, 0.1);
+    --mist: #e2e8f0;
+    --text-main: #334155;
+    --text-muted: #64748b;
+    --text-dark: #0f172a;
+    --brand-cyan: #00e0ff;
+    --brand-blue: #3b82f6;
+    --brand-violet: #8b5cf6;
+    --brand-pink: #ff4db4;
+    --brand-red: #ef4444;
+    --brand-amber: #f59e0b;
+    --shadow-xl: 0 30px 90px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 22px 58px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 14px 30px rgba(0, 0, 0, 0.03);
+    --glow-cyan: 0 0 20px rgba(0, 224, 255, 0.5);
+    --glow-pink: 0 0 20px rgba(255, 77, 180, 0.5);
+    --radius-xl: 32px;
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --page-max: 1240px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+    color: var(--text-main);
+    font-family: "Sora", "Noto Sans SC", "Segoe UI", sans-serif;
+    background-color: transparent;
+    min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+img { display: block; }
+.page-wrap {
+    position: relative;
+    width: min(var(--page-max), calc(100vw - 32px));
+    margin: 0 auto;
+}
+
+.glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 1);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+
+.brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    text-decoration: none;
+}
+
+/* Minimalist Logo Adaptation */
+.brand-mark-shell { display: none !important; }
+.nav-brand-art { display: none !important; }
+
+.brand-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: linear-gradient(270deg, var(--brand-cyan), var(--brand-blue), var(--brand-pink), var(--brand-cyan));
+    background-size: 300% 100%;
+    animation: gradientSweep 4s ease infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+}
+
+@keyframes gradientSweep {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.brand-subtitle {
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.92rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--line-strong);
+    color: var(--text-main);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+
+.kicker::before {
+    content: "";
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand-cyan), var(--brand-pink));
+    box-shadow: var(--glow-cyan);
+}
+
+.pill-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    min-height: 48px;
+    padding: 0.9rem 1.4rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+.pill-button:hover {
+    transform: translateY(-2px);
+}
+
+.pill-button.primary {
+    color: #ffffff;
+    background: linear-gradient(90deg, #00d4ff, #ff4d94, #00d4ff);
+    background-size: 200% 100%;
+    animation: gradientSweep 3s linear infinite;
+    border: none;
+    box-shadow: 0 0 25px rgba(0, 224, 255, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.4);
+    position: relative;
+    overflow: hidden;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.pill-button.primary:hover {
+    box-shadow: 0 0 45px rgba(0, 224, 255, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.8);
+    transform: scale(1.04) translateY(-2px);
+    color: #ffffff;
+}
+
+.pill-button.secondary {
+    color: var(--text-main);
+    border-color: var(--line-strong);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+}
+
+.pill-button.secondary:hover {
+    background: #ffffff;
+    box-shadow: var(--shadow-md);
+}
+
+.soft-mono { font-family: "JetBrains Mono", monospace; }
+
+.ambient-orb { display: none !important; }
+
+@media (max-width: 768px) {
+    .page-wrap { width: min(var(--page-max), calc(100vw - 20px)); }
+    .brand-subtitle { letter-spacing: 0.14em; }
+}

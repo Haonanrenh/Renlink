@@ -1,0 +1,72 @@
+# Maven
+backend/target/
+backend/.m2repo/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+.run/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Node modules (如果将来使用)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+case/RTASR_LLM_java/target/
+tools/
+
+# Environment files
+.env
+backend/.env
+.env.local
+.env.*.local
+!.env.example
+
+# Database files
+*.db
+*.sqlite
+*.h2.db
+*.mv.db
+*.trace.db
+backend/data/
+!backend/data/.gitkeep
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# Test coverage
+coverage/
+.nyc_output/
+API接口文档.md
+文档.md
