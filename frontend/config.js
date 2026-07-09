@@ -36,6 +36,21 @@ const CONFIG = {
         enabled: true
     },
 
+    // 手语边界手势识别配置（用于切分后续模型推理的视频帧区间）
+    gestureRecognition: {
+        holdDurationMs: 1500,
+        boundaryCooldownMs: 1200,
+        useControlZone: false,
+        controlZoneRatio: 0.35,
+        inferenceFps: 12,
+        sampleFps: 8,
+        maxSegmentDurationMs: 10000,
+        minHandsForBoundary: 2,
+        minDetectionConfidence: 0.65,
+        minTrackingConfidence: 0.65,
+        captureFrameData: false
+    },
+
     // 实时字幕配置
     subtitle: {
         provider: 'xfyun_rtasr_llm',

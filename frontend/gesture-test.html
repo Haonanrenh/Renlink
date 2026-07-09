@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renlink - 手语边界手势测试</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="../network-config.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="brand.css">
+    <link rel="stylesheet" href="css/gesture-test.css">
+</head>
+<body class="gesture-test-page">
+    <main class="gesture-shell">
+        <header class="gesture-header">
+            <div>
+                <h1 class="gesture-title">手语边界手势识别测试</h1>
+                <p class="gesture-subtitle">
+                    双手出现在画面中并保持：双手 5 根手指全部伸出触发开始采集，双手 5 根手指全部收起触发停止采集。
+                    这两个动作只用于切分后续模型推理的视频帧区间。
+                </p>
+            </div>
+            <a class="gesture-back-link" href="dashboard.html">返回主页</a>
+        </header>
+
+        <section class="gesture-layout">
+            <div class="gesture-video-card">
+                <div id="gestureVideoStage" class="gesture-video-stage">
+                    <video id="gestureVideo" class="gesture-video" muted playsinline></video>
+                    <canvas id="gestureOverlay" class="gesture-overlay"></canvas>
+                    <div class="gesture-control-zone">
+                        <span class="gesture-zone-label">整屏边界手势检测</span>
+                    </div>
+                    <div class="gesture-empty-state">
+                        <div>
+                            <strong>摄像头尚未启动</strong>
+                            <p class="gesture-tip">点击“开始测试”后，请让双手完整出现在画面中。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gesture-actions">
+                    <button id="startGestureTestBtn" class="gesture-btn primary" type="button">开始测试</button>
+                    <button id="stopGestureTestBtn" class="gesture-btn" type="button" disabled>停止测试</button>
+                    <button id="resetGestureSegmentBtn" class="gesture-btn" type="button" disabled>重置区间</button>
+                </div>
+            </div>
+
+            <aside class="gesture-panel">
+                <section class="gesture-section">
+                    <h2 class="gesture-section-title">识别状态</h2>
+                    <span id="gestureStatus" class="gesture-status-pill">未启动</span>
+                    <div class="gesture-kv">
+                        <span>候选手势</span>
+                        <strong id="gestureCandidate">无</strong>
+                        <span>检测手数</span>
+                        <strong id="gestureHandsInZone">0</strong>
+                        <span>保持时长</span>
+                        <strong id="gestureHoldTime">0 ms</strong>
+                    </div>
+                    <div class="gesture-progress">
+                        <div id="gestureProgressBar" class="gesture-progress-bar"></div>
+                    </div>
+                    <p class="gesture-tip">必须在控制区持续保持，进度满后才会触发边界事件。</p>
+                </section>
+
+                <section class="gesture-section">
+                    <h2 class="gesture-section-title">帧区间</h2>
+                    <div class="gesture-kv">
+                        <span>当前状态</span>
+                        <strong id="segmentState">未启动</strong>
+                        <span>已采样帧</span>
+                        <strong id="segmentFrameCount">0</strong>
+                        <span>区间时长</span>
+                        <strong id="segmentDuration">0.00 s</strong>
+                        <span>采样帧率</span>
+                        <strong id="segmentSampleFps">0 fps</strong>
+                    </div>
+                    <p id="segmentLastResult" class="gesture-tip">还没有截取区间。</p>
+                </section>
+
+                <section class="gesture-section">
+                    <h2 class="gesture-section-title">事件日志</h2>
+                    <div id="gestureLog" class="gesture-log">等待开始测试...</div>
+                </section>
+            </aside>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="js/gesture-recognition-client.js"></script>
+    <script>
+        const pageState = {
+            stream: null,
+            client: null,
+            segmentState: 'idle',
+            segmentStartAt: null,
+            segmentEndAt: null,
+            sampledFrames: [],
+            statsTimer: null,
+            lastLogLines: []
+        };
+
+        const elements = {
+            stage: document.getElementById('gestureVideoStage'),
+            video: document.getElementById('gestureVideo'),
+            overlay: document.getElementById('gestureOverlay'),
+            startBtn: document.getElementById('startGestureTestBtn'),
+            stopBtn: document.getElementById('stopGestureTestBtn'),
+            resetBtn: document.getElementById('resetGestureSegmentBtn'),
+            status: document.getElementById('gestureStatus'),
+            candidate: document.getElementById('gestureCandidate'),
+            handsInZone: document.getElementById('gestureHandsInZone'),
+            holdTime: document.getElementById('gestureHoldTime'),
+            progressBar: document.getElementById('gestureProgressBar'),
+            segmentState: document.getElementById('segmentState'),
+            frameCount: document.getElementById('segmentFrameCount'),
+            duration: document.getElementById('segmentDuration'),
+            sampleFps: document.getElementById('segmentSampleFps'),
+            lastResult: document.getElementById('segmentLastResult'),
+            log: document.getElementById('gestureLog')
+        };
+
+        const SEGMENT_STATE_LABELS = {
+            idle: '未启动',
+            waitingStart: '等待开始手势',
+            collecting: '采集中',
+            captured: '已截取',
+            error: '错误'
+        };
+
+        function getGestureConfig() {
+            return CONFIG.gestureRecognition || {};
+        }
+
+        function logEvent(message) {
+            const time = new Date().toLocaleTimeString();
+            pageState.lastLogLines.unshift(`[${time}] ${message}`);
+            pageState.lastLogLines = pageState.lastLogLines.slice(0, 8);
+            elements.log.textContent = pageState.lastLogLines.join('\n');
+        }
+
+        function setStatus(message) {
+            elements.status.textContent = message;
+        }
+
+        function setSegmentState(nextState) {
+            pageState.segmentState = nextState;
+            elements.segmentState.textContent = SEGMENT_STATE_LABELS[nextState] || nextState;
+        }
+
+        function resetSegment() {
+            pageState.segmentStartAt = null;
+            pageState.segmentEndAt = null;
+            pageState.sampledFrames = [];
+            setSegmentState(pageState.client ? 'waitingStart' : 'idle');
+            elements.frameCount.textContent = '0';
+            elements.duration.textContent = '0.00 s';
+            elements.lastResult.textContent = '还没有截取区间。';
+            logEvent('已重置当前帧区间');
+        }
+
+        function updateCandidate(payload) {
+            if (!payload || !payload.type) {
+                elements.candidate.textContent = '无';
+                elements.handsInZone.textContent = String(payload ? payload.handsInControlZone : 0);
+                elements.holdTime.textContent = '0 ms';
+                elements.progressBar.style.width = '0%';
+                return;
+            }
+
+            elements.candidate.textContent = payload.label;
+            elements.handsInZone.textContent = String(payload.handsInControlZone);
+            elements.holdTime.textContent = `${Math.round(payload.durationMs)} ms`;
+            elements.progressBar.style.width = `${Math.round(payload.progress * 100)}%`;
+        }
+
+        function handleBoundary(event) {
+            if (event.type === 'start') {
+                pageState.segmentStartAt = Date.now();
+                pageState.segmentEndAt = null;
+                pageState.sampledFrames = [];
+                setSegmentState('collecting');
+                elements.lastResult.textContent = '已检测到开始边界，正在采集有效帧。';
+                logEvent(`触发开始边界，置信度 ${event.confidence}`);
+                return;
+            }
+
+            if (event.type === 'stop') {
+                if (pageState.segmentState !== 'collecting') {
+                    logEvent('检测到停止边界，但当前没有正在采集的区间');
+                    return;
+                }
+
+                finalizeSegment('停止边界');
+            }
+        }
+
+        function handleFrame(frame) {
+            if (pageState.segmentState !== 'collecting') {
+                return;
+            }
+
+            const maxDurationMs = getGestureConfig().maxSegmentDurationMs || 10000;
+            const durationMs = Date.now() - pageState.segmentStartAt;
+            pageState.sampledFrames.push(frame);
+
+            if (durationMs >= maxDurationMs) {
+                finalizeSegment('达到最大区间时长');
+            }
+        }
+
+        function finalizeSegment(reason) {
+            pageState.segmentEndAt = Date.now();
+            setSegmentState('captured');
+
+            const durationMs = pageState.segmentEndAt - pageState.segmentStartAt;
+            const metadata = {
+                frameCount: pageState.sampledFrames.length,
+                durationMs,
+                sampleFps: getGestureConfig().sampleFps || 8,
+                source: 'local-camera',
+                reason
+            };
+
+            elements.lastResult.textContent = `已截取区间：${metadata.frameCount} 帧，${(durationMs / 1000).toFixed(2)} 秒。等待 signlen 接入。`;
+            logEvent(`区间结束：${reason}，${metadata.frameCount} 帧，${(durationMs / 1000).toFixed(2)} 秒`);
+        }
+
+        function updateSegmentStats() {
+            if (pageState.segmentState === 'collecting' && pageState.segmentStartAt) {
+                const durationMs = Date.now() - pageState.segmentStartAt;
+                elements.duration.textContent = `${(durationMs / 1000).toFixed(2)} s`;
+            }
+
+            elements.frameCount.textContent = String(pageState.sampledFrames.length);
+            elements.sampleFps.textContent = `${getGestureConfig().sampleFps || 8} fps`;
+        }
+
+        function drawOverlay(payload) {
+            const canvas = elements.overlay;
+            const video = elements.video;
+
+            if (!video.videoWidth || !video.videoHeight) {
+                return;
+            }
+
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+            }
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 224, 255, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([12, 8]);
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            if (!payload.raw || !payload.raw.multiHandLandmarks) {
+                return;
+            }
+
+            payload.raw.multiHandLandmarks.forEach((landmarks) => {
+                if (typeof drawConnectors === 'function' && typeof HAND_CONNECTIONS !== 'undefined') {
+                    drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: '#00d5ff', lineWidth: 3 });
+                }
+
+                if (typeof drawLandmarks === 'function') {
+                    drawLandmarks(ctx, landmarks, { color: '#ff8bdd', lineWidth: 1, radius: 3 });
+                }
+            });
+        }
+
+        async function startGestureTest() {
+            try {
+                elements.startBtn.disabled = true;
+                setStatus('正在打开摄像头...');
+
+                pageState.stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: false
+                });
+
+                elements.video.srcObject = pageState.stream;
+                await elements.video.play();
+                elements.stage.classList.add('is-live');
+
+                pageState.client = new GestureRecognitionClient({
+                    onStatus: setStatus,
+                    onCandidate: updateCandidate,
+                    onBoundary: handleBoundary,
+                    onFrame: handleFrame,
+                    onResults: drawOverlay,
+                    onError: (message) => {
+                        setStatus(message);
+                        setSegmentState('error');
+                        logEvent(`错误：${message}`);
+                    }
+                });
+
+                await pageState.client.start(elements.video);
+                setSegmentState('waitingStart');
+                elements.stopBtn.disabled = false;
+                elements.resetBtn.disabled = false;
+                pageState.statsTimer = window.setInterval(updateSegmentStats, 200);
+                logEvent('测试已启动');
+            } catch (error) {
+                setStatus(error.message || '启动测试失败');
+                setSegmentState('error');
+                elements.startBtn.disabled = false;
+                logEvent(`启动失败：${error.message || error}`);
+                await stopGestureTest();
+            }
+        }
+
+        async function stopGestureTest() {
+            if (pageState.statsTimer) {
+                window.clearInterval(pageState.statsTimer);
+                pageState.statsTimer = null;
+            }
+
+            if (pageState.client) {
+                await pageState.client.stop();
+                pageState.client = null;
+            }
+
+            if (pageState.stream) {
+                pageState.stream.getTracks().forEach((track) => track.stop());
+                pageState.stream = null;
+            }
+
+            elements.video.srcObject = null;
+            elements.stage.classList.remove('is-live');
+            elements.startBtn.disabled = false;
+            elements.stopBtn.disabled = true;
+            elements.resetBtn.disabled = true;
+            setSegmentState('idle');
+            setStatus('已停止');
+            updateCandidate(null);
+            updateSegmentStats();
+            logEvent('测试已停止并释放摄像头');
+        }
+
+        elements.startBtn.addEventListener('click', startGestureTest);
+        elements.stopBtn.addEventListener('click', stopGestureTest);
+        elements.resetBtn.addEventListener('click', resetSegment);
+
+        window.addEventListener('beforeunload', () => {
+            if (pageState.stream) {
+                pageState.stream.getTracks().forEach((track) => track.stop());
+            }
+        });
+
+        elements.sampleFps.textContent = `${getGestureConfig().sampleFps || 8} fps`;
+    </script>
+</body>
+</html>

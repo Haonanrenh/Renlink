@@ -41,6 +41,15 @@ class CallManager {
             local: this.createSubtitleStream('local'),
             remote: this.createSubtitleStream('remote')
         };
+
+        this.isSignRecognitionEnabled = false;
+        this.signRecognitionClient = null;
+        this.signRecognitionState = 'idle';
+        this.signRecognitionFrames = [];
+        this.signRecognitionStartAt = null;
+        this.signRecognitionEndAt = null;
+        this.signRecognitionStatsTimer = null;
+        this.signRecognitionLastSegment = null;
     }
 
     createSubtitleStream(source) {
@@ -1313,6 +1322,318 @@ class CallManager {
             }
         }
     }
+
+    getSignRecognitionStateLabel(state = this.signRecognitionState) {
+        const labels = {
+            idle: '未启动',
+            waitingStart: '等待开始手势',
+            collecting: '采集中',
+            captured: '已截取',
+            error: '错误'
+        };
+
+        return labels[state] || state;
+    }
+
+    setSignRecognitionState(state) {
+        this.signRecognitionState = state;
+        const stateEl = document.getElementById('signRecognitionState');
+        if (stateEl) {
+            stateEl.textContent = this.getSignRecognitionStateLabel(state);
+        }
+        this.updateSignRecognitionButtonState();
+    }
+
+    updateSignRecognitionStatus(message) {
+        const statusEl = document.getElementById('signRecognitionStatus');
+        if (statusEl) {
+            statusEl.textContent = message;
+        }
+    }
+
+    updateSignRecognitionButtonState() {
+        const btn = document.getElementById('signRecognitionBtn');
+        if (!btn) {
+            return;
+        }
+
+        const icon = btn.querySelector('.icon');
+        const label = btn.querySelector('.label');
+        const isCollecting = this.signRecognitionState === 'collecting';
+        const isModeEnabled = this.isSignRecognitionEnabled;
+
+        btn.classList.toggle('hidden', !isModeEnabled);
+        btn.disabled = !isModeEnabled;
+        btn.classList.toggle('active', isCollecting);
+        btn.classList.toggle('muted', isCollecting);
+        btn.title = !isModeEnabled
+            ? '请先开启手语识别模式'
+            : isCollecting ? '停止截取手语片段' : '开始截取手语片段';
+
+        if (icon) {
+            icon.textContent = isCollecting ? '停' : '识';
+        }
+
+        if (label) {
+            label.textContent = isCollecting ? '停止识别' : '开始识别';
+        }
+    }
+
+    updateSignRecognitionModeButtonState() {
+        const btn = document.getElementById('signRecognitionModeBtn');
+        if (!btn) {
+            return;
+        }
+
+        const icon = btn.querySelector('.icon');
+        const label = btn.querySelector('.label');
+
+        btn.classList.toggle('active', this.isSignRecognitionEnabled);
+        btn.title = this.isSignRecognitionEnabled ? '关闭手语识别模式' : '开启手语识别模式';
+
+        if (icon) {
+            icon.textContent = this.isSignRecognitionEnabled ? '开' : '模';
+        }
+
+        if (label) {
+            label.textContent = this.isSignRecognitionEnabled ? '模式开启' : '手语模式';
+        }
+
+        this.updateSignRecognitionButtonState();
+    }
+
+    updateSignRecognitionCandidate(payload) {
+        const candidateEl = document.getElementById('signRecognitionCandidate');
+        const handsEl = document.getElementById('signRecognitionHands');
+        const holdEl = document.getElementById('signRecognitionHold');
+        const progressEl = document.getElementById('signRecognitionProgressBar');
+
+        if (!payload || !payload.type) {
+            if (candidateEl) candidateEl.textContent = '无';
+            if (handsEl) handsEl.textContent = payload ? String(payload.handsInControlZone || 0) : '0';
+            if (holdEl) holdEl.textContent = '0 ms';
+            if (progressEl) progressEl.style.width = '0%';
+            return;
+        }
+
+        if (candidateEl) candidateEl.textContent = payload.label;
+        if (handsEl) handsEl.textContent = String(payload.handsInControlZone || 0);
+        if (holdEl) holdEl.textContent = `${Math.round(payload.durationMs)} ms`;
+        if (progressEl) progressEl.style.width = `${Math.round(payload.progress * 100)}%`;
+    }
+
+    updateSignRecognitionStats() {
+        const frameCountEl = document.getElementById('signRecognitionFrameCount');
+        const durationEl = document.getElementById('signRecognitionDuration');
+        const sampleFpsEl = document.getElementById('signRecognitionSampleFps');
+        const config = CONFIG.gestureRecognition || {};
+
+        if (frameCountEl) {
+            const count = this.signRecognitionState === 'captured' && this.signRecognitionLastSegment
+                ? this.signRecognitionLastSegment.frameCount
+                : this.signRecognitionFrames.length;
+            frameCountEl.textContent = String(count);
+        }
+
+        if (durationEl) {
+            let durationMs = 0;
+            if (this.signRecognitionState === 'collecting' && this.signRecognitionStartAt) {
+                durationMs = Date.now() - this.signRecognitionStartAt;
+            } else if (this.signRecognitionLastSegment) {
+                durationMs = this.signRecognitionLastSegment.durationMs;
+            }
+            durationEl.textContent = `${(durationMs / 1000).toFixed(2)} s`;
+        }
+
+        if (sampleFpsEl) {
+            sampleFpsEl.textContent = `${config.sampleFps || 8} fps`;
+        }
+    }
+
+    resetSignRecognitionSegment(nextState = null) {
+        this.signRecognitionFrames = [];
+        this.signRecognitionStartAt = null;
+        this.signRecognitionEndAt = null;
+        this.signRecognitionLastSegment = null;
+        this.setSignRecognitionState(nextState || (this.isSignRecognitionEnabled ? 'waitingStart' : 'idle'));
+
+        const resultEl = document.getElementById('signRecognitionLastResult');
+        if (resultEl) {
+            resultEl.textContent = '还没有截取区间。';
+        }
+
+        this.updateSignRecognitionStats();
+    }
+
+    async startSignRecognition() {
+        if (this.isSignRecognitionEnabled) {
+            return true;
+        }
+
+        if (typeof GestureRecognitionClient === 'undefined') {
+            this.updateSignRecognitionStatus('未加载手势识别客户端');
+            this.setSignRecognitionState('error');
+            return false;
+        }
+
+        if (!agoraClient.localVideoTrack) {
+            this.updateSignRecognitionStatus('本地摄像头未就绪，无法识别手语边界');
+            this.setSignRecognitionState('error');
+            return false;
+        }
+
+        this.signRecognitionClient = new GestureRecognitionClient({
+            onStatus: (message) => this.updateSignRecognitionStatus(message),
+            onCandidate: (payload) => this.updateSignRecognitionCandidate(payload),
+            onBoundary: (event) => this.handleSignRecognitionBoundary(event),
+            onFrame: (frame) => this.handleSignRecognitionFrame(frame),
+            onError: (message) => {
+                this.updateSignRecognitionStatus(message);
+                this.setSignRecognitionState('error');
+                this.isSignRecognitionEnabled = false;
+                this.updateSignRecognitionModeButtonState();
+                this.updateSignRecognitionButtonState();
+            }
+        });
+
+        try {
+            await this.signRecognitionClient.start(agoraClient.localVideoTrack);
+            this.isSignRecognitionEnabled = true;
+            this.resetSignRecognitionSegment('waitingStart');
+            this.updateSignRecognitionStatus('手语识别模式已开启，等待开始手势或按钮');
+            this.updateSignRecognitionModeButtonState();
+            this.updateSignRecognitionButtonState();
+            this.signRecognitionStatsTimer = setInterval(() => this.updateSignRecognitionStats(), 200);
+            return true;
+        } catch (error) {
+            console.error('[SignRecognition] 启动失败:', error);
+            this.signRecognitionClient = null;
+            this.isSignRecognitionEnabled = false;
+            this.updateSignRecognitionStatus(error.message || '手语边界识别启动失败');
+            this.setSignRecognitionState('error');
+            this.updateSignRecognitionModeButtonState();
+            this.updateSignRecognitionButtonState();
+            return false;
+        }
+    }
+
+    async stopSignRecognition() {
+        if (this.signRecognitionStatsTimer) {
+            clearInterval(this.signRecognitionStatsTimer);
+            this.signRecognitionStatsTimer = null;
+        }
+
+        if (this.signRecognitionClient) {
+            await this.signRecognitionClient.stop();
+            this.signRecognitionClient = null;
+        }
+
+        this.isSignRecognitionEnabled = false;
+        this.signRecognitionFrames = [];
+        this.signRecognitionStartAt = null;
+        this.signRecognitionEndAt = null;
+        this.updateSignRecognitionCandidate(null);
+        this.updateSignRecognitionStatus('已停止');
+        this.setSignRecognitionState('idle');
+        this.updateSignRecognitionModeButtonState();
+        this.updateSignRecognitionButtonState();
+        this.updateSignRecognitionStats();
+    }
+
+    handleSignRecognitionBoundary(event) {
+        if (!event || !event.type) {
+            return;
+        }
+
+        if (event.type === 'start') {
+            this.beginSignFrameSegment('开始边界手势');
+            return;
+        }
+
+        if (event.type === 'stop') {
+            if (this.signRecognitionState !== 'collecting') {
+                this.updateSignRecognitionStatus('检测到停止边界，但当前没有正在采集的区间');
+                return;
+            }
+
+            this.finalizeSignFrameSegment('停止边界');
+        }
+    }
+
+    handleSignRecognitionFrame(frame) {
+        if (this.signRecognitionState !== 'collecting') {
+            return;
+        }
+
+        const config = CONFIG.gestureRecognition || {};
+        const maxDurationMs = config.maxSegmentDurationMs || 10000;
+        const durationMs = Date.now() - this.signRecognitionStartAt;
+        this.signRecognitionFrames.push(frame);
+
+        if (durationMs >= maxDurationMs) {
+            this.finalizeSignFrameSegment('达到最大区间时长');
+        }
+    }
+
+    beginSignFrameSegment(reason) {
+        if (this.signRecognitionState === 'collecting') {
+            this.updateSignRecognitionStatus('正在采集中，检测到新的开始边界已忽略');
+            return false;
+        }
+
+        this.signRecognitionFrames = [];
+        this.signRecognitionStartAt = Date.now();
+        this.signRecognitionEndAt = null;
+        this.signRecognitionLastSegment = null;
+        this.setSignRecognitionState('collecting');
+        this.updateSignRecognitionStatus(reason === '按钮'
+            ? '已通过按钮开始采集有效帧'
+            : '已检测到开始边界，正在采集有效帧');
+
+        const resultEl = document.getElementById('signRecognitionLastResult');
+        if (resultEl) {
+            resultEl.textContent = '正在采集开始到停止之间的视频帧。';
+        }
+
+        this.updateSignRecognitionStats();
+        return true;
+    }
+
+    finalizeSignFrameSegment(reason) {
+        if (this.signRecognitionState !== 'collecting' || !this.signRecognitionStartAt) {
+            this.updateSignRecognitionStatus('当前没有正在采集的手语片段');
+            return;
+        }
+
+        this.signRecognitionEndAt = Date.now();
+        const config = CONFIG.gestureRecognition || {};
+        const durationMs = this.signRecognitionEndAt - this.signRecognitionStartAt;
+        const metadata = {
+            frameCount: this.signRecognitionFrames.length,
+            startTime: this.signRecognitionStartAt,
+            endTime: this.signRecognitionEndAt,
+            durationMs,
+            sampleFps: config.sampleFps || 8,
+            source: 'local-camera',
+            reason
+        };
+
+        this.signRecognitionLastSegment = metadata;
+        this.signRecognitionFrames = [];
+        this.setSignRecognitionState('captured');
+        this.submitSignFrameSegment(metadata);
+        this.updateSignRecognitionStats();
+    }
+
+    submitSignFrameSegment(metadata) {
+        const resultEl = document.getElementById('signRecognitionLastResult');
+        if (resultEl) {
+            resultEl.textContent = `已截取区间：${metadata.frameCount} 帧，${(metadata.durationMs / 1000).toFixed(2)} 秒。等待 signlen 接入。`;
+        }
+
+        this.updateSignRecognitionStatus('区间已截取，等待模型接入');
+        console.log('[SignRecognition] frame segment ready:', metadata);
+    }
 }
 
 
@@ -1388,6 +1709,15 @@ async function toggleVideo() {
             btn.classList.add('muted');
             btn.querySelector('.icon').textContent = '📹';
             btn.querySelector('.label').textContent = '已关闭';
+            if (callManager.isSignRecognitionEnabled) {
+                await callManager.stopSignRecognition();
+                const signRecognitionModeBtn = document.getElementById('signRecognitionModeBtn');
+                const signRecognitionBtn = document.getElementById('signRecognitionBtn');
+                const signRecognitionContainer = document.getElementById('sign-recognition-container');
+                if (signRecognitionModeBtn) signRecognitionModeBtn.classList.remove('active');
+                if (signRecognitionBtn) signRecognitionBtn.classList.remove('active');
+                if (signRecognitionContainer) signRecognitionContainer.classList.add('hidden');
+            }
         } else {
             btn.classList.remove('muted');
             btn.querySelector('.icon').textContent = '📹';
@@ -1472,6 +1802,64 @@ function toggleSignLanguage() {
     }
 }
 
+async function toggleSignRecognitionMode() {
+    const btn = document.getElementById('signRecognitionModeBtn');
+    const container = document.getElementById('sign-recognition-container');
+
+    if (!btn || !container) {
+        return;
+    }
+
+    btn.disabled = true;
+
+    try {
+        if (!callManager.isSignRecognitionEnabled) {
+            container.classList.remove('hidden');
+            await callManager.startSignRecognition();
+        } else {
+            if (callManager.signRecognitionState === 'collecting') {
+                callManager.finalizeSignFrameSegment('关闭手语识别模式');
+            }
+            await callManager.stopSignRecognition();
+            container.classList.add('hidden');
+        }
+    } finally {
+        callManager.updateSignRecognitionModeButtonState();
+        callManager.updateSignRecognitionButtonState();
+        btn.disabled = false;
+    }
+}
+
+async function toggleSignRecognition() {
+    const btn = document.getElementById('signRecognitionBtn');
+    const container = document.getElementById('sign-recognition-container');
+
+    if (!btn || !container) {
+        return;
+    }
+
+    btn.disabled = true;
+
+    try {
+        container.classList.remove('hidden');
+
+        if (!callManager.isSignRecognitionEnabled) {
+            callManager.updateSignRecognitionStatus('请先开启手语识别模式');
+            callManager.updateSignRecognitionButtonState();
+            return;
+        }
+
+        if (callManager.signRecognitionState === 'collecting') {
+            callManager.finalizeSignFrameSegment('按钮');
+        } else {
+            callManager.beginSignFrameSegment('按钮');
+        }
+    } finally {
+        callManager.updateSignRecognitionButtonState();
+        btn.disabled = false;
+    }
+}
+
 async function hangup() {
     try {
         console.log('[Call] hangup 被调用');
@@ -1484,6 +1872,8 @@ async function hangup() {
         if (typeof audioManager !== 'undefined') {
             audioManager.stopRingtone();
         }
+
+        await callManager.stopSignRecognition();
 
         await callManager.stopTextToSpeechPlayback();
 

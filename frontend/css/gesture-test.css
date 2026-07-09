@@ -1,0 +1,263 @@
+* {
+    box-sizing: border-box;
+}
+
+body.gesture-test-page {
+    min-height: 100vh;
+    margin: 0;
+    padding: 28px;
+    color: var(--text-dark, #101827);
+    background:
+        radial-gradient(circle at top left, rgba(0, 224, 255, 0.18), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(255, 139, 221, 0.18), transparent 28%),
+        #f8fbff;
+    font-family: "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.gesture-shell {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+}
+
+.gesture-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.gesture-title {
+    margin: 0;
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 800;
+}
+
+.gesture-subtitle {
+    margin: 8px 0 0;
+    color: var(--text-muted, #64748b);
+    line-height: 1.6;
+}
+
+.gesture-back-link {
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    color: #0f172a;
+    text-decoration: none;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.gesture-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 18px;
+    align-items: start;
+}
+
+.gesture-video-card,
+.gesture-panel {
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(24px);
+}
+
+.gesture-video-card {
+    padding: 16px;
+}
+
+.gesture-video-stage {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 22px;
+    background: #0f172a;
+}
+
+.gesture-video,
+.gesture-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.gesture-overlay {
+    pointer-events: none;
+}
+
+.gesture-control-zone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px dashed rgba(0, 224, 255, 0.64);
+    background: linear-gradient(180deg, rgba(0, 224, 255, 0.08), transparent);
+    pointer-events: none;
+}
+
+.gesture-zone-label {
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    color: #e0faff;
+    background: rgba(15, 23, 42, 0.72);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.gesture-empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: #cbd5e1;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.88));
+}
+
+.gesture-video-stage.is-live .gesture-empty-state {
+    display: none;
+}
+
+.gesture-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.gesture-btn {
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    color: #0f172a;
+    background: #fff;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.gesture-btn:hover {
+    transform: translateY(-1px);
+}
+
+.gesture-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+    transform: none;
+}
+
+.gesture-btn.primary {
+    background: linear-gradient(135deg, rgba(0, 224, 255, 0.25), rgba(255, 139, 221, 0.25));
+}
+
+.gesture-panel {
+    padding: 18px;
+}
+
+.gesture-section + .gesture-section {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.gesture-section-title {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.gesture-status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(0, 224, 255, 0.14);
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.gesture-kv {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+    gap: 8px 10px;
+    margin-top: 12px;
+    color: #475569;
+    font-size: 0.92rem;
+}
+
+.gesture-kv strong {
+    color: #0f172a;
+}
+
+.gesture-progress {
+    width: 100%;
+    height: 10px;
+    margin-top: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.08);
+}
+
+.gesture-progress-bar {
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #00d5ff, #ff8bdd);
+    transition: width 0.12s linear;
+}
+
+.gesture-tip {
+    margin: 10px 0 0;
+    color: #64748b;
+    line-height: 1.6;
+    font-size: 0.9rem;
+}
+
+.gesture-log {
+    min-height: 92px;
+    max-height: 160px;
+    overflow: auto;
+    padding: 12px;
+    border-radius: 16px;
+    color: #0f172a;
+    background: rgba(248, 250, 252, 0.92);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 920px) {
+    body.gesture-test-page {
+        padding: 18px;
+    }
+
+    .gesture-header,
+    .gesture-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .gesture-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

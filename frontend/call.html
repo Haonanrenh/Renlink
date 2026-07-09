@@ -176,6 +176,45 @@
                 </div>
             </div>
 
+            <div id="sign-recognition-container" class="sign-recognition-container hidden">
+                <div class="sign-recognition-panel glass-panel">
+                    <div class="sign-recognition-header">
+                        <div>
+                            <span class="sign-recognition-kicker">手语识别</span>
+                            <h2 class="sign-recognition-title">边界帧区间</h2>
+                        </div>
+                        <span id="signRecognitionStatus" class="sign-recognition-status">未启动</span>
+                    </div>
+
+                    <p class="sign-recognition-tip">
+                        先开启“手语模式”，再点击“开始识别/停止识别”截取片段；也可让双手出现在画面中并保持：5 指全部伸出为开始，5 指全部收起为停止。
+                    </p>
+
+                    <div class="sign-recognition-progress">
+                        <div id="signRecognitionProgressBar" class="sign-recognition-progress-bar"></div>
+                    </div>
+
+                    <div class="sign-recognition-grid">
+                        <span>当前状态</span>
+                        <strong id="signRecognitionState">未启动</strong>
+                        <span>候选手势</span>
+                        <strong id="signRecognitionCandidate">无</strong>
+                        <span>检测手数</span>
+                        <strong id="signRecognitionHands">0</strong>
+                        <span>保持时长</span>
+                        <strong id="signRecognitionHold">0 ms</strong>
+                        <span>采样帧数</span>
+                        <strong id="signRecognitionFrameCount">0</strong>
+                        <span>区间时长</span>
+                        <strong id="signRecognitionDuration">0.00 s</strong>
+                        <span>采样帧率</span>
+                        <strong id="signRecognitionSampleFps">0 fps</strong>
+                    </div>
+
+                    <p id="signRecognitionLastResult" class="sign-recognition-result">还没有截取区间。</p>
+                </div>
+            </div>
+
             <div id="sign-language-container" class="sign-language-container hidden">
                 <div class="sign-language-header">
                     <span>手语辅助视图</span>
@@ -195,6 +234,16 @@
         <button id="videoBtn" class="control-btn" onclick="toggleVideo()" title="摄像头">
             <span class="icon">📹</span>
             <span class="label">摄像头</span>
+        </button>
+
+        <button id="signRecognitionModeBtn" class="control-btn" onclick="toggleSignRecognitionMode()" title="开启手语识别模式">
+            <span class="icon">模</span>
+            <span class="label">手语模式</span>
+        </button>
+
+        <button id="signRecognitionBtn" class="control-btn hidden" onclick="toggleSignRecognition()" title="请先开启手语识别模式" disabled>
+            <span class="icon">识</span>
+            <span class="label">开始识别</span>
         </button>
 
         <button id="subtitleBtn" class="control-btn" onclick="toggleSubtitle()" title="字幕">
@@ -247,6 +296,8 @@
     <script src="js/websocket-client.js?v=20260422-typing-status"></script>
     <script src="js/xfyun-rtasr-client.js?v=20260422-typing-status"></script>
     <script src="js/xfyun-tts-client.js?v=20260422-typing-status"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="js/gesture-recognition-client.js?v=20260709-boundary"></script>
     <script src="js/sign-language-avatar.js?v=20260422-typing-status"></script>
     <script src="js/call-manager.js?v=20260510-media-fallback"></script>
     <script src="js/interactive-bg.js?v=20260422-typing-status"></script>
